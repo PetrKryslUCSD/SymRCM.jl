@@ -62,3 +62,43 @@ may be a significant expense. In that case the sorting may be turned off.
 p = symrcm(A; sortbydeg = false) # note the keyword argument
 ```
 Very often the resulting permutation is as good  as if the lists were sorted.
+
+## Performance
+ 
+Relative numbers may be of interest:
+
+Present package code
+```
+using SymRCM                    
+using SparseArrays                                     
+let   
+    S = sprand(10000000, 10000000, 0.0000001);    
+    S = S + transpose(S);                                                       
+    @time p = symrcm(S; sortbydeg = true);  
+    I, J, V = findnz(S[p, p])
+    @show bw = maximum(I .- J) + 1            
+    @time p = symrcm(S; sortbydeg = false);   
+    I, J, V = findnz(S[p, p])
+    @show bw = maximum(I .- J) + 1     
+    true   
+end;  
+```
+produces
+```
+  8.852244 seconds (10.00 M allocations: 1.471 GiB, 6.35% gc time)      
+bw = maximum(I .- J) + 1 = 1536038            
+  8.889803 seconds (10.00 M allocations: 1.471 GiB, 6.50% gc time)           
+bw = maximum(I .- J) + 1 = 1536038   
+```
+
+Matlab 2020a:
+```
+>> S = sprand(10000000, 10000000, 0.0000001);     
+S = S + S';
+tic; p = symrcm(S); toc  
+[i,j] = find(S(p,p));
+bw = max(i-j) + 1
+Elapsed time is 9.258979 seconds.
+bw =
+     1535477
+```
