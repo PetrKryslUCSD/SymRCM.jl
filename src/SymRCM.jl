@@ -140,7 +140,7 @@ assumed to be symmetric. The results will be wrong if it isn't.
   faster, as the sorting is expensive when the neighbor lists are long.
 """
 function symrcm(A::SparseMatrixCSC; sortbydeg = true) 
-    ag = adjgraph(A; sortbydeg = true)
+    ag = adjgraph(A; sortbydeg = sortbydeg)
     nd = nodedegrees(ag)
     return symrcm(ag, nd)
 end

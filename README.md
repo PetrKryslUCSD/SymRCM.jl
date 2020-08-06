@@ -85,10 +85,10 @@ end;
 ```
 produces
 ```
-  8.852244 seconds (10.00 M allocations: 1.471 GiB, 6.35% gc time)      
-bw = maximum(I .- J) + 1 = 1536038            
-  8.889803 seconds (10.00 M allocations: 1.471 GiB, 6.50% gc time)           
-bw = maximum(I .- J) + 1 = 1536038   
+  9.271877 seconds (10.07 M allocations: 1.474 GiB, 6.42% gc time)          
+bw = maximum(I .- J) + 1 = 1535838              
+  7.189242 seconds (10.00 M allocations: 1.471 GiB, 3.04% gc time)    
+bw = maximum(I .- J) + 1 = 1535722   
 ```
 
 Matlab 2020a:
