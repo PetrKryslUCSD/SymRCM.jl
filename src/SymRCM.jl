@@ -104,15 +104,11 @@ function symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where {T}
         end
         # Now we have a node to start from: put it into the result list
         push!(R, P); inR[P] = true
-        # Clean out the in-queue markers
-        for i in Q
-            inQ[i] = false
-        end
         empty!(Q) # empty the queue
         append!(Q, adjgr[P]); inQ[adjgr[P]] .= true # put adjacent nodes in queue
         while length(Q) >= 1
             C = popfirst!(Q) # child to put into the result list
-            inQ[C] = false
+            inQ[C] = false # make note: it is not in the queue anymore
             if !inR[C]
                 push!(R, C); inR[C] = true
             end
