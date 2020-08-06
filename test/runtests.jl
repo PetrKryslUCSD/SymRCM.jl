@@ -469,5 +469,25 @@ mmmfieldma5.test()
 # x = xp[ip]
 # A \ b
 
+# using SymRCM                    
+# using SparseArrays                                     
+# let   
+#     S = sprand(10000000, 10000000, 0.0000001);    
+#     S = S + transpose(S);                                                       
+#     @time p = symrcm(S; sortbydeg = true);  
+#     I, J, V = findnz(S[p, p])
+#     @show bw = maximum(I .- J) + 1            
+#     @time p = symrcm(S; sortbydeg = false);   
+#     I, J, V = findnz(S[p, p])
+#     @show bw = maximum(I .- J) + 1     
+#     true   
+# end;  
+
+# S = sprand(10000000, 10000000, 0.0000001);     
+# S = S + S';
+# tic; p = symrcm(S); toc  
+# [i,j] = find(S(p,p));
+# bw = max(i-j) + 1
+
 # All tests done
 true
