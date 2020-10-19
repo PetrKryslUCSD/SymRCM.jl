@@ -27,7 +27,7 @@ For a sparse matrix `A` the basic usage is:
 p = symrcm(A)
 ```
 To solve the system of linear algebraic equations `x = A * b` with renumbering one can do
-```
+```julia
 using SparseArrays
 using LinearAlgebra
 n = 7;
@@ -45,12 +45,12 @@ A \ b # this is the direct solution which should be identical to the above
 ```
 
 Lower-level functions may also be useful. The adjacency graph and the node degrees may be calculated as
-```
+```julia
 ag = adjgraph(A; sortbydeg = true)
 nd = nodedegrees(ag)
 ```
 which can be used to compute the renumbering as
-```
+```julia
 numbering1 = symrcm(ag, nd) # using the lower-level functions
 numbering2 = symrcm(A) # direct use of the sparse matrix
 ```
@@ -58,7 +58,7 @@ and these two will be identical.
 
 For significantly populated matrices the sorting of the neighbor lists
 may be a significant expense. In that case the sorting may be turned off.
-```
+```julia
 p = symrcm(A; sortbydeg = false) # note the keyword argument
 ```
 Very often the resulting permutation is as good  as if the lists were sorted.
@@ -68,7 +68,7 @@ Very often the resulting permutation is as good  as if the lists were sorted.
 Relative numbers may be of interest:
 
 Present package code
-```
+```julia
 using SymRCM                    
 using SparseArrays                                     
 let   
@@ -84,7 +84,7 @@ let
 end;  
 ```
 produces
-```
+```julia
   9.271877 seconds (10.07 M allocations: 1.474 GiB, 6.42% gc time)          
 bw = maximum(I .- J) + 1 = 1535838              
   7.189242 seconds (10.00 M allocations: 1.471 GiB, 3.04% gc time)    
