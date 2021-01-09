@@ -1,7 +1,7 @@
 name = "SymRCM"
 uuid = "286e6d88-80af-4590-acc9-0001b223b9bd"
 authors = ["Petr Krysl <pkrysl@ucsd.edu>"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
