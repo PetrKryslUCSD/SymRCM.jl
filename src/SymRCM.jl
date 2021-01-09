@@ -42,6 +42,58 @@ function adjgraph(A::SparseMatrixCSC; sortbydeg = true)
 end
 
 """
+    adjgraph(conn, nfens)
+
+Compute the adjacency graph from the array of connectivities of the elements
+in the mesh.
+
+# Examples
+```
+conn = [9 1 8 4;
+       1 3 2 8;
+       8 2 7 5;
+       2 6 7 7];
+nfens = 9;
+adjgraph(conn, nfens)
+```
+should produce
+```
+9-element Array{Array{Int64,1},1}:
+ [9, 8, 4, 3, 2]
+ [1, 3, 8, 7, 5, 6]
+ [1, 2, 8]
+ [9, 1, 8]
+ [8, 2, 7]
+ [2, 7]
+ [8, 2, 5, 6]
+ [9, 1, 4, 3, 2, 7, 5]
+ [1, 8, 4]
+ ```
+"""
+function adjgraph(conn, nfens)
+    neighbors = fill(Int[], nfens)
+    for i = 1:length(neighbors)
+        neighbors[i] = Int[]
+    end
+    for k in 1:size(conn, 1)
+        for node1 in conn[k, :]
+            for node2 in conn[k, :]
+                if node1 != node2
+                    push!(neighbors[node1], node2)
+                end
+            end
+        end
+    end
+    # All of these can be done in parallel,  they are totally independent. The
+    # question is when to switch over to parallel execution amortize the cost
+    # of starting up threads.
+    for i in 1:length(neighbors)
+        neighbors[i] = unique(neighbors[i])
+    end
+    return neighbors
+end
+
+"""
     nodedegrees(adjgr::Vector{Vector{Int}})
 
 Compute the degrees of the nodes in the adjacency graph.
