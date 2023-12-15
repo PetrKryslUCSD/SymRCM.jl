@@ -1,6 +1,6 @@
 module SymRCM
 
-# (C) 2020, Petr Krysl
+# (C) 2020-2023, Petr Krysl
 
 export symrcm
 
@@ -119,8 +119,8 @@ julia> degrees = node_degrees(adjgr)
  3
 """
 function nodedegrees(adjgr::Vector{Vector{T}}) where {T}
-    degrees = fill(0, length(adjgr))
-    for k = 1:length(adjgr)
+    degrees = fill(zero(T), length(adjgr))
+    for k in 1:length(adjgr)
         degrees[k] = length(adjgr[k])
     end
     return degrees

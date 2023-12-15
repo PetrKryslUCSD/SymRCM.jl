@@ -1,7 +1,7 @@
 name = "SymRCM"
 uuid = "286e6d88-80af-4590-acc9-0001b223b9bd"
 authors = ["Petr Krysl <pkrysl@ucsd.edu>"]
-version = "0.2.1"
+version = "0.2.2"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -9,4 +9,4 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-julia = "^1.5"
+julia = "^1.9"
