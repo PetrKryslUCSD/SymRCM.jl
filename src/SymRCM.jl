@@ -5,6 +5,7 @@ module SymRCM
 export symrcm
 
 using SparseArrays
+using SparseArrays: getcolptr
 
 """
     adjgraph(A)
@@ -126,22 +127,30 @@ function nodedegrees(adjgr::Vector{Vector{T}}) where {T}
     return degrees
 end
 
+
+# Sort the row indices of a symmetric matrix `A` by their column degree.
+function sortbydeg!(A::SparseMatrixCSC) 
+    for j in axes(A, 2)
+        column = @view rowvals(A)[nzrange(A, j)]
+        sort!(column; by=j -> length(nzrange(A, j)))
+    end
+    
+    A
+end
+
 """
-    symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where {T}
+    symrcm(neighbors::Function, degrees::AbstractVector)
 
 Reverse Cuthill-McKee node-renumbering algorithm.
 """
-function symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where {T}
-    @assert length(adjgr) == length(degrees)
+function symrcm(neighbors::Function, degrees::AbstractVector{T}) where T
     # Initialization
-    n = length(adjgr)
+    n = length(degrees)
     ndegperm = sortperm(degrees) # sorted nodal degrees
     inR = fill(false, n) # Is a node in the result list?
     inQ = fill(false, n) # Is a node in the queue?
-    R = T[]
-    sizehint!(R, n)
-    Q = T[] # Node queue
-    sizehint!(Q, n)
+    R = sizehint!(T[], n)
+    Q = sizehint!(T[], n) # Node queue
     while true
         P = zero(T) # Find the next node to start from
         while !isempty(ndegperm)
@@ -157,25 +166,49 @@ function symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where {T}
         # Now we have a node to start from: put it into the result list
         push!(R, P); inR[P] = true
         empty!(Q) # empty the queue
-        append!(Q, adjgr[P]); inQ[adjgr[P]] .= true # put adjacent nodes in queue
+        append!(Q, neighbors(P)); inQ[neighbors(P)] .= true # put adjacent nodes in queue
         while length(Q) >= 1
             C = popfirst!(Q) # child to put into the result list
             inQ[C] = false # make note: it is not in the queue anymore
             if !inR[C]
                 push!(R, C); inR[C] = true
             end
-            for i in adjgr[C] # add all adjacent nodes into the queue
+            for i in neighbors(C) # add all adjacent nodes into the queue
                 if (!inR[i]) && (!inQ[i]) # contingent on not being in result/queue
                     push!(Q, i); inQ[i] = true
                 end
             end
         end
     end
-    return reverse(R) # reverse the result list
+    return reverse!(R) # reverse the result list
 end
 
 """
-    symrcm(A::SparseMatrixCSC; sortbydeg = true) 
+    symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where {T}
+
+Reverse Cuthill-McKee node-renumbering algorithm.
+"""
+function symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where {T}
+    # validate arguments
+    length(adjgr) != length(degrees) && throw(ArgumentError("length(adjgr) != length(degrees)"))
+
+    # run algorithm
+    symrcm(degrees) do j
+        adjgr[j]
+    end
+end
+
+"""
+    symrcm(A::SparseMatrixCSC; sortbydeg::Bool=true) 
+
+Non-mutating version of [`symrcm!`](@ref).
+"""
+function symrcm(A::SparseMatrixCSC; sortbydeg::Bool=true)
+    symrcm!(copy(A))
+end
+
+"""
+    symrcm!(A::SparseMatrixCSC; sortbydeg::Bool=true) 
 
 Reverse Cuthill-McKee node-renumbering algorithm.
 
@@ -187,10 +220,16 @@ assumed to be symmetric. The results will be wrong if it isn't.
   set to `false` and the lists are not sorted. The second option can be much
   faster, as the sorting is expensive when the neighbor lists are long.
 """
-function symrcm(A::SparseMatrixCSC; sortbydeg = true) 
-    ag = adjgraph(A; sortbydeg = sortbydeg)
-    nd = nodedegrees(ag)
-    return symrcm(ag, nd)
+function symrcm!(A::SparseMatrixCSC; sortbydeg::Bool=true)
+    # validate argument
+    size(A, 1) != size(A, 2) && throw(ArgumentError("size(A, 1) != size(A, 2)"))
+    
+    # run algorithm
+    sortbydeg && sortbydeg!(A)
+    
+    return symrcm(diff(getcolptr(A))) do j
+        @view rowvals(A)[nzrange(A, j)]
+    end
 end
 
 end # module
