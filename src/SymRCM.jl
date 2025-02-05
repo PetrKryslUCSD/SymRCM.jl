@@ -104,29 +104,31 @@ function symrcm_sorted(graph::AbstractGraph{V}) where V
     label = fill(false, nv(graph))
     order = Vector{V}(undef, nv(graph))
 
-    # find psuedo-peripheral vertex
-    root = argmin(vertices(graph)) do i
-        degree(graph, i)
-    end
+    if nv(graph) > 0
+        # find psuedo-peripheral vertex
+        root = argmin(vertices(graph)) do i
+            degree(graph, i)
+        end
 
-    # compute Cuthill-Mckee ordering
-    component, stack = bfs!(label, order, graph, root)
+        # compute Cuthill-Mckee ordering
+        component, stack = bfs!(label, order, graph, root)
 
-    for j in vertices(graph)
-        if !label[j]
-            # compute connected component
-            component, stack = bfs!(label, stack, graph, j)
+        for j in vertices(graph)
+            if !label[j]
+                # compute connected component
+                component, stack = bfs!(label, stack, graph, j)
 
-            # find psuedo-peripheral vertex
-            root = argmin(component) do i
-                degree(graph, i)
+                # find psuedo-peripheral vertex
+                root = argmin(component) do i
+                    degree(graph, i)
+                end
+
+                # reset labels
+                label[component] .= false
+
+                # compute Cuthill-Mckee ordering
+                bfs!(label, component, graph, root)
             end
-
-            # reset labels
-            label[component] .= false
-
-            # compute Cuthill-Mckee ordering
-            bfs!(label, component, graph, root)
         end
     end
 
