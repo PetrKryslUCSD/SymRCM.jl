@@ -104,7 +104,7 @@ function symrcm_sorted(graph::AbstractGraph{V}) where V
     label = fill(false, nv(graph))
     order = Vector{V}(undef, nv(graph))
 
-    if nv(graph) > 0
+    if !iszero(nv(graph))
         # find psuedo-peripheral vertex
         root = argmin(vertices(graph)) do i
             degree(graph, i)
