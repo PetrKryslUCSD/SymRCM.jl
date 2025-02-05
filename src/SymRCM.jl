@@ -1,11 +1,166 @@
 module SymRCM
 
+
 # (C) 2020-2023, Petr Krysl
+
 
 export symrcm
 
+
+using Base: oneto
 using SparseArrays
 using SparseArrays: getcolptr
+
+
+############################
+# Abstract Graph Interface #
+############################
+
+
+const AbstractGraph{V} = Union{SparseMatrixCSC{<:Any, V}, AbstractVector{<:AbstractVector{V}}}
+
+
+function neighbors(graph::SparseMatrixCSC, v::Integer)
+    @view rowvals(graph)[nzrange(graph, v)]
+end
+
+
+function neighbors(graph::AbstractVector{<:AbstractVector}, v::Integer)
+    graph[v]
+end
+
+
+function degree(graph::SparseMatrixCSC, v::Integer)
+    getcolptr(graph)[v + 1] - getcolptr(graph)[v]
+end
+
+
+function degree(graph::AbstractVector{<:AbstractVector{V}}, v::Integer) where V
+    convert(V, length(graph[v]))
+end
+
+
+function nv(graph::SparseMatrixCSC{<:Any, V}) where V
+    convert(V, size(graph, 2))
+end
+
+
+function nv(graph::AbstractVector{<:AbstractVector{V}}) where V
+    convert(V, length(graph))
+end
+
+
+function vertices(graph::AbstractGraph)
+    oneto(nv(graph))
+end
+
+
+function copygraph(graph::SparseMatrixCSC)
+    copy(graph)
+end
+
+
+function copygraph(graph::AbstractVector{<:AbstractVector})
+    deepcopy(graph)
+end
+
+
+###################################
+# Reverse Cuthill-Mckee Algorithm #
+###################################
+
+
+"""
+    symrcm(graph; sortbydeg::Bool=true) 
+
+Reverse Cuthill-McKee node-renumbering algorithm.
+
+- `sortbydeg`: Should the neighbor lists be sorted by column degree? The default is
+  `true`, but often results of very similar quality are obtained when this is
+  set to `false` and the lists are not sorted. The second option can be much
+  faster, as the sorting is expensive when the neighbor lists are long.
+"""
+function symrcm(graph; sortbydeg::Bool=true)
+    symrcm(graph, sortbydeg)
+end
+
+
+# Apply the reverse Cuthill-Mckee algorithm to each connected component of a graph.
+function symrcm(graph::AbstractGraph, sortbydeg::Bool)
+    if sortbydeg
+        graph = copygraph(graph)
+        
+        # sort neighbors
+        for j in vertices(graph)
+            sort!(neighbors(graph, j); by=i -> degree(graph, i))
+        end
+    end
+
+    symrcm_sorted(graph)
+end
+
+
+function symrcm_sorted(graph::AbstractGraph{V}) where V
+    label = fill(false, nv(graph))
+    order = Vector{V}(undef, nv(graph))
+
+    # find psuedo-peripheral vertex
+    root = argmin(vertices(graph)) do i
+        degree(graph, i)
+    end
+
+    # compute Cuthill-Mckee ordering
+    component, stack = bfs!(label, order, graph, root)
+
+    for j in vertices(graph)
+        if !label[j]
+            # compute connected component
+            component, stack = bfs!(label, stack, graph, j)
+
+            # find psuedo-peripheral vertex
+            root = argmin(component) do i
+                degree(graph, i)
+            end
+
+            # reset labels
+            label[component] .= false
+
+            # compute Cuthill-Mckee ordering
+            bfs!(label, component, graph, root)
+        end
+    end
+
+    # reverse ordering    
+    reverse!(order)
+end
+
+
+# Perform a breadth-first search of a graph.
+@views function bfs!(label::AbstractVector{Bool}, stack::AbstractVector{V}, graph::AbstractGraph{V}, root::V) where V
+    i = j = firstindex(stack)
+    label[root] = true
+    stack[j] = root
+
+    while i <= j
+        for v in neighbors(graph, stack[i])
+            if !label[v]
+                j += 1
+                label[v] = true
+                stack[j] = v
+            end
+        end
+
+        i += 1
+    end
+
+    stack[begin:j], stack[i:end]
+end
+
+
+############
+# Old Code #
+############
+
 
 """
     adjgraph(A)
@@ -128,108 +283,9 @@ function nodedegrees(adjgr::Vector{Vector{T}}) where {T}
 end
 
 
-# Sort the row indices of a symmetric matrix `A` by their column degree.
-function sortbydeg!(A::SparseMatrixCSC) 
-    for j in axes(A, 2)
-        column = @view rowvals(A)[nzrange(A, j)]
-        sort!(column; by=j -> length(nzrange(A, j)))
-    end
-    
-    A
+function symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where T
+    symrcm_sorted(adjgr)
 end
 
-"""
-    symrcm(neighbors::Function, degrees::AbstractVector)
-
-Reverse Cuthill-McKee node-renumbering algorithm.
-"""
-function symrcm(neighbors::Function, degrees::AbstractVector{T}) where T
-    # Initialization
-    n = length(degrees)
-    ndegperm = sortperm(degrees) # sorted nodal degrees
-    inR = fill(false, n) # Is a node in the result list?
-    inQ = fill(false, n) # Is a node in the queue?
-    R = sizehint!(T[], n)
-    Q = sizehint!(T[], n) # Node queue
-    while true
-        P = zero(T) # Find the next node to start from
-        while !isempty(ndegperm)
-            i = popfirst!(ndegperm)
-            if !inR[i]
-                P = i
-                break
-            end
-        end
-        if P == zero(T)
-            break # That was the last node
-        end
-        # Now we have a node to start from: put it into the result list
-        push!(R, P); inR[P] = true
-        empty!(Q) # empty the queue
-        append!(Q, neighbors(P)); inQ[neighbors(P)] .= true # put adjacent nodes in queue
-        while length(Q) >= 1
-            C = popfirst!(Q) # child to put into the result list
-            inQ[C] = false # make note: it is not in the queue anymore
-            if !inR[C]
-                push!(R, C); inR[C] = true
-            end
-            for i in neighbors(C) # add all adjacent nodes into the queue
-                if (!inR[i]) && (!inQ[i]) # contingent on not being in result/queue
-                    push!(Q, i); inQ[i] = true
-                end
-            end
-        end
-    end
-    return reverse!(R) # reverse the result list
-end
-
-"""
-    symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where {T}
-
-Reverse Cuthill-McKee node-renumbering algorithm.
-"""
-function symrcm(adjgr::Vector{Vector{T}}, degrees::Vector{T}) where {T}
-    # validate arguments
-    length(adjgr) != length(degrees) && throw(ArgumentError("length(adjgr) != length(degrees)"))
-
-    # run algorithm
-    symrcm(degrees) do j
-        adjgr[j]
-    end
-end
-
-"""
-    symrcm(A::SparseMatrixCSC; sortbydeg::Bool=true) 
-
-Non-mutating version of [`symrcm!`](@ref).
-"""
-function symrcm(A::SparseMatrixCSC; sortbydeg::Bool=true)
-    symrcm!(copy(A))
-end
-
-"""
-    symrcm!(A::SparseMatrixCSC; sortbydeg::Bool=true) 
-
-Reverse Cuthill-McKee node-renumbering algorithm.
-
-Compute the adjacency graph from a sparse matrix. The sparse matrix `A` is
-assumed to be symmetric. The results will be wrong if it isn't.
-
-- `sortbydeg`: Should the neighbor lists be sorted by column degree? The default is
-  `true`, but often results of very similar quality are obtained when this is
-  set to `false` and the lists are not sorted. The second option can be much
-  faster, as the sorting is expensive when the neighbor lists are long.
-"""
-function symrcm!(A::SparseMatrixCSC; sortbydeg::Bool=true)
-    # validate argument
-    size(A, 1) != size(A, 2) && throw(ArgumentError("size(A, 1) != size(A, 2)"))
-    
-    # run algorithm
-    sortbydeg && sortbydeg!(A)
-    
-    return symrcm(diff(getcolptr(A))) do j
-        @view rowvals(A)[nzrange(A, j)]
-    end
-end
 
 end # module
