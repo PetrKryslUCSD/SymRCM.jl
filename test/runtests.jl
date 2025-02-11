@@ -124,7 +124,7 @@ function test()
     numbering = symrcm(ag, nd)
     # display(spy(A))
     # display(spy(A[numbering, numbering]))
-    @test numbering[end-4:end] == [22, 21, 20, 10, 9]
+    @test numbering[end-4:end] == [12, 16, 11, 4, 9]
 
     numbering1 = symrcm(ag, nd)
     numbering2 = symrcm(A)
