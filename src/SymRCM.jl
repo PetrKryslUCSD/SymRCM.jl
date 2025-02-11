@@ -36,17 +36,27 @@ end
 
 
 function degree(graph::AbstractVector{<:AbstractVector{V}}, v::Integer) where V
-    convert(V, length(graph[v]))
+    n::V = length(graph[v])
+    n
+end
+
+
+function Δ(graph::AbstractGraph{V}) where V
+    maximum(vertices(graph); init=zero(V)) do v
+        degree(graph, v)
+    end
 end
 
 
 function nv(graph::SparseMatrixCSC{<:Any, V}) where V
-    convert(V, size(graph, 2))
+    n::V = size(graph, 2)
+    n
 end
 
 
 function nv(graph::AbstractVector{<:AbstractVector{V}}) where V
-    convert(V, length(graph))
+    n::V = length(graph)
+    n
 end
 
 
@@ -86,13 +96,15 @@ end
 
 
 # Apply the reverse Cuthill-Mckee algorithm to each connected component of a graph.
-function symrcm(graph::AbstractGraph, sortbydeg::Bool)
+function symrcm(graph::AbstractGraph{V}, sortbydeg::Bool) where V
     if sortbydeg
         graph = copygraph(graph)
         
         # sort neighbors
+        scratch = Vector{V}(undef, Δ(graph))
+
         for j in vertices(graph)
-            sort!(neighbors(graph, j); by=i -> degree(graph, i))
+            sort!(neighbors(graph, j); by=i -> degree(graph, i), scratch)
         end
     end
 
@@ -111,12 +123,12 @@ function symrcm_sorted(graph::AbstractGraph{V}) where V
         end
 
         # compute Cuthill-Mckee ordering
-        component, stack = bfs!(label, order, graph, root)
+        component, queue = bfs!(label, order, graph, root)
 
         for j in vertices(graph)
             if !label[j]
                 # compute connected component
-                component, stack = bfs!(label, stack, graph, j)
+                component, queue = bfs!(label, queue, graph, j)
 
                 # find psuedo-peripheral vertex
                 root = argmin(component) do i
@@ -138,24 +150,24 @@ end
 
 
 # Perform a breadth-first search of a graph.
-@views function bfs!(label::AbstractVector{Bool}, stack::AbstractVector{V}, graph::AbstractGraph{V}, root::V) where V
-    i = j = firstindex(stack)
+@views function bfs!(label::AbstractVector{Bool}, queue::AbstractVector{V}, graph::AbstractGraph{V}, root::V) where V
+    i = j = firstindex(queue)
     label[root] = true
-    stack[j] = root
+    queue[j] = root
 
-    while i <= j
-        for v in neighbors(graph, stack[i])
+    @inbounds while i <= j
+        for v in neighbors(graph, queue[i])
             if !label[v]
                 j += 1
                 label[v] = true
-                stack[j] = v
+                queue[j] = v
             end
         end
 
         i += 1
     end
 
-    stack[begin:j], stack[i:end]
+    queue[begin:j], queue[i:end]
 end
 
 
